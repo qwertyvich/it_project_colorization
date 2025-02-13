@@ -1,0 +1,27 @@
+import io
+import os
+import uuid
+from celery import Celery
+from PIL import Image, ImageOps
+
+BROKER_URL = "amqp://guest:guest@localhost:5672//"
+BACKEND_URL = "rpc://"  # Или, лучше: "redis://localhost:6379/0"
+
+celery_app = Celery("tasks", broker=BROKER_URL, backend=BACKEND_URL)
+
+# Папка, куда кладём готовые файлы
+PROCESSED_FOLDER = os.path.join("app", "static", "processed")
+os.makedirs(PROCESSED_FOLDER, exist_ok=True)
+
+@celery_app.task
+def process_image_task(image_bytes: bytes) -> str:
+    """
+    Пример: инвертируем картинку и сохраняем PNG на диск.
+    Возвращаем полный путь к готовому файлу.
+    """
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        inverted = ImageOps.invert(img.convert("RGB"))
+        filename = f"{uuid.uuid4().hex}.png"
+        file_path = os.path.join(PROCESSED_FOLDER, filename)
+        inverted.save(file_path, "PNG")
+    return file_path

@@ -1,7 +1,6 @@
 # app/main.py
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from app.routes.image_routes import router as image_router
 
 def create_app() -> FastAPI:
@@ -10,7 +9,6 @@ def create_app() -> FastAPI:
     чтобы в будущем при необходимости передавать настройки.
     """
     app = FastAPI(title="Colorizer Project")
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
     app.include_router(image_router)
     return app
 
