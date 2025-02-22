@@ -46,16 +46,15 @@ async def upload_image(
     grain: int = Form(...),
     sharpness: int = Form(...)
 ):
-    """
-    1) Принимаем картинку и параметры (grain, sharpness) из формы.
-    2) Синхронно вызываем Celery-задачу (task.get()) -- блокирующий вызов.
-    3) Возвращаем JSON со ссылкой на /show/{filename}.
-    """
+   
+    #- принимаем картинку и параметры (grain, sharpness) из формы.
+    #- синхронно вызываем Celery-задачу
+    #- возвращаем JSON со ссылкой на /show/...
     image_bytes = await file.read()
 
-    # Здесь можно передать grain, sharpness в задачу, если нужно учесть в обработке
+    # здесь можно передать grain, sharpness в задачу, если нужно учесть в обработке
     result_async = process_image_task.apply(args=[image_bytes, grain, sharpness])
-    file_path = result_async.get()  # дождались конца Celery-задачи
+    file_path = result_async.get()                  # дождались конца Celery задачи
 
     if not file_path or not os.path.exists(file_path):
         raise HTTPException(status_code=500, detail="Не удалось получить путь к обработанному файлу")
@@ -65,16 +64,13 @@ async def upload_image(
 
 @router.get("/show/{filename}", response_class=HTMLResponse)
 def show_processed_image(filename: str):
-    """
-    Показываем страницу с готовым изображением,
-    которое лежит в /static/processed/{filename}.
-    """
-    # Проверим, что файл реально есть
+    #отображение страницы с готовым изображением, которое лежит в /static/processed/...
+    # проверка существования файла
     full_path = os.path.join(PROCESSED_FOLDER, filename)
     if not os.path.exists(full_path):
         raise HTTPException(404, detail="Файл не найден")
 
-    # Вернём простой HTML с <img> на него:
+    # возращаем простой HTML с <img> на него:
     return f"""
     <html>
       <head><title>Результат обработки</title></head>

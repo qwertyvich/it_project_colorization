@@ -15,10 +15,7 @@ os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 @celery_app.task
 def process_image_task(*args) -> str:
-    """
-    Пример: инвертируем картинку и сохраняем PNG на диск.
-    Возвращаем полный путь к готовому файлу.
-    """
+    #инвертируем картинку
     image_bytes = args[0]
     with Image.open(io.BytesIO(image_bytes)) as img:
         inverted = ImageOps.invert(img.convert("RGB"))
