@@ -1,7 +1,8 @@
 import os
-from fastapi import APIRouter, File, UploadFile, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from app.services.tasks import process_image_task, PROCESSED_FOLDER
+import os
 
 router = APIRouter()
 
@@ -11,38 +12,56 @@ def index_page():
     Простейшая HTML-форма загрузки.
     """
     return """
-    <html>
-      <head><title>Загрузка изображения</title></head>
-      <body>
-        <h1>Загрузите изображение</h1>
-        <form action="/upload" method="post" enctype="multipart/form-data">
-          <input type="file" name="file" accept="image/*" required/>
-          <button type="submit">Загрузить</button>
-        </form>
-      </body>
-    </html>
+    <!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Upload with Grain & Sharpness</title>
+</head>
+<body>
+    <h1>Загрузка файла + параметры</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <p>
+            <label for="file">Выберите файл:</label><br>
+            <input type="file" id="file" name="file" accept="image/*" required>
+        </p>
+        <p>
+            <label for="grain">Зернистость:</label><br>
+            <input type="number" id="grain" name="grain" value="50" min="0" max="100">
+        </p>
+        <p>
+            <label for="sharpness">Чёткость:</label><br>
+            <input type="number" id="sharpness" name="sharpness" value="50" min="0" max="100">
+        </p>
+        <button type="submit">Загрузить</button>
+    </form>
+</body>
+</html>
+
     """
 
 @router.post("/upload")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(
+    file: UploadFile = File(...),
+    grain: int = Form(...),
+    sharpness: int = Form(...)
+):
     """
-    1) Принимаем картинку
-    2) Синхронно вызываем Celery-задачу (task.get()) -- блокирующий вызов
-    3) Редиректим на страницу /show/{filename}, где картинка будет видна
+    1) Принимаем картинку и параметры (grain, sharpness) из формы.
+    2) Синхронно вызываем Celery-задачу (task.get()) -- блокирующий вызов.
+    3) Возвращаем JSON со ссылкой на /show/{filename}.
     """
     image_bytes = await file.read()
 
-    # --- Внимание: блокирующий вызов ---
-    # Вместо .delay(...) + опроса, вызываем .apply(...) и get()
-    # Это дождётся конца обработки!
-    result_async = process_image_task.apply(args=[image_bytes])
+    # Здесь можно передать grain, sharpness в задачу, если нужно учесть в обработке
+    result_async = process_image_task.apply(args=[image_bytes, grain, sharpness])
     file_path = result_async.get()  # дождались конца Celery-задачи
 
-    # Возвращается полный путь (app/static/processed/abc123.png)
-    filename = os.path.basename(file_path)
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=500, detail="Не удалось получить путь к обработанному файлу")
 
-    # Перенаправляем на эндпойнт /show/{filename}
-    return RedirectResponse(url=f"/show/{filename}", status_code=302)
+    filename = os.path.basename(file_path)
+    return JSONResponse(content={"redirect_url": f"/static/processed/{filename}"})
 
 @router.get("/show/{filename}", response_class=HTMLResponse)
 def show_processed_image(filename: str):
@@ -65,3 +84,4 @@ def show_processed_image(filename: str):
       </body>
     </html>
     """
+
