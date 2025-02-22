@@ -9,7 +9,7 @@ BACKEND_URL = "rpc://"
 
 celery_app = Celery("tasks", broker=BROKER_URL, backend=BACKEND_URL)
 
-# Папка, куда кладём готовые файлы
+# папка, куда кладём готовые файлы
 PROCESSED_FOLDER = os.path.join("app", "static", "processed")
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
